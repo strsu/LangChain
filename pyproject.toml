@@ -21,6 +21,7 @@ dependencies = [
     "requests",
     "urllib3",
     "idna",
+    "certifi"
 ]
 
 [build-system]
@@ -30,3 +31,6 @@ build-backend = "hatchling.build"
 [tool.rye]
 managed = true
 dev-dependencies = [] 
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"] 
