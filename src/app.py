@@ -40,10 +40,10 @@ GENERAL_CHAT_KEY = "general_chat"  # 일반 대화용 키
 
 # 사용 가능한 모델 목록
 AVAILABLE_MODELS = {
-    "tinyllama": "가벼운 모델 (512MB)",
-    "llama2": "중간 크기 모델 (3GB)",
-    "mistral": "큰 모델 (4GB)",
-    "neural-chat": "작은 대화 특화 모델 (1.5GB)"
+    "mistral": "기본 추천 모델 - 빠르고 자연스러운 한국어 응답 (4GB)",
+    "neural-chat": "대화 특화 모델 (1.5GB)",
+    "llama2": "범용 모델 (3GB)",
+    "tinyllama": "가벼운 모델 - 느리지만 메모리 적게 사용 (512MB)"
 }
 
 # Ollama 모델 설치 확인 및 설치
@@ -126,7 +126,7 @@ selected_model = st.sidebar.selectbox(
     "사용할 모델 선택",
     options=list(AVAILABLE_MODELS.keys()),
     format_func=lambda x: f"{x} - {AVAILABLE_MODELS[x]}",
-    index=0  # 기본값으로 tinyllama 선택
+    index=0  # mistral을 기본값으로 설정
 )
 
 # 모델 설치 확인
