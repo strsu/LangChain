@@ -35,6 +35,14 @@ CHROMA_DIR = "chroma_dbs"
 CHAT_HISTORY_FILE = "chat_history.json"
 GENERAL_CHAT_KEY = "general_chat"  # 일반 대화용 키
 
+# 사용 가능한 모델 목록
+AVAILABLE_MODELS = {
+    "tinyllama": "가벼운 모델 (512MB)",
+    "llama2": "중간 크기 모델 (3GB)",
+    "mistral": "큰 모델 (4GB)",
+    "neural-chat": "작은 대화 특화 모델 (1.5GB)"
+}
+
 # 디렉토리 생성
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CHROMA_DIR, exist_ok=True)
@@ -54,8 +62,30 @@ def save_chat_history(history):
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = load_chat_history()
 
+# Streamlit 페이지 설정
+st.set_page_config(page_title="AI 챗봇", layout="wide")
+
+# 사이드바에 모델 선택 추가
+st.sidebar.title("🤖 모델 설정")
+selected_model = st.sidebar.selectbox(
+    "사용할 모델 선택",
+    options=list(AVAILABLE_MODELS.keys()),
+    format_func=lambda x: f"{x} - {AVAILABLE_MODELS[x]}",
+    index=0  # 기본값으로 tinyllama 선택
+)
+
 # LLM 초기화
-llm = Ollama(model="mistral")
+@st.cache_resource
+def get_llm(model_name):
+    return Ollama(model=model_name)
+
+llm = get_llm(selected_model)
+
+st.sidebar.info(f"""
+현재 환경: CPU 2코어, RAM 16GB
+선택된 모델: {selected_model}
+모델 설명: {AVAILABLE_MODELS[selected_model]}
+""")
 
 # 일반 대화용 프롬프트 템플릿
 general_chat_prompt = PromptTemplate(
@@ -147,9 +177,6 @@ def combine_vectorstores(pdf_hashes: List[str], pdf_info: Dict, embedding_model)
         )
     
     return combined_db
-
-# Streamlit 페이지 설정
-st.set_page_config(page_title="AI 챗봇", layout="wide")
 
 # 탭 생성
 tab1, tab2, tab3, tab4 = st.tabs(["💬 일반 대화", "📄 PDF 분석", "📊 문서 분석", "📝 대화 기록"])
