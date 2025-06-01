@@ -12,6 +12,7 @@ dependencies = [
     "unstructured",
     "sentence-transformers",
     "ollama",
+    "blinker",
 ]
 
 [build-system]
