@@ -13,6 +13,7 @@ dependencies = [
     "sentence-transformers",
     "ollama",
     "blinker",
+    "protobuf",
 ]
 
 [build-system]
