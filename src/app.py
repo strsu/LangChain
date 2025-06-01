@@ -21,6 +21,9 @@ from keybert import KeyBERT
 import pandas as pd
 import nltk
 from collections import defaultdict
+import requests
+import subprocess
+import time
 
 # NLTK 데이터 다운로드
 try:
@@ -42,6 +45,48 @@ AVAILABLE_MODELS = {
     "mistral": "큰 모델 (4GB)",
     "neural-chat": "작은 대화 특화 모델 (1.5GB)"
 }
+
+# Ollama 모델 설치 확인 및 설치
+def check_and_install_model(model_name: str) -> bool:
+    # Ollama 서비스 확인
+    try:
+        response = requests.get("http://localhost:11434/api/tags")
+        if response.status_code != 200:
+            return False
+    except requests.exceptions.ConnectionError:
+        st.error("""
+        Ollama 서비스가 실행되고 있지 않습니다. 다음 단계를 따라주세요:
+        
+        1. Ollama 설치 (처음 실행 시):
+        ```bash
+        curl -fsSL https://ollama.com/install.sh | sh
+        ```
+        
+        2. Ollama 서비스 실행:
+        ```bash
+        ollama serve
+        ```
+        """)
+        return False
+    
+    # 설치된 모델 확인
+    installed_models = [tag["name"] for tag in response.json().get("models", [])]
+    if model_name not in installed_models:
+        with st.spinner(f"'{model_name}' 모델 설치 중... (처음 실행시 몇 분 소요될 수 있습니다)"):
+            try:
+                subprocess.run(["ollama", "pull", model_name], check=True)
+                time.sleep(2)  # 설치 완료 후 잠시 대기
+                return True
+            except subprocess.CalledProcessError:
+                st.error(f"""
+                '{model_name}' 모델 설치 중 오류가 발생했습니다.
+                터미널에서 다음 명령어를 실행해주세요:
+                ```bash
+                ollama pull {model_name}
+                ```
+                """)
+                return False
+    return True
 
 # 디렉토리 생성
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -74,6 +119,10 @@ selected_model = st.sidebar.selectbox(
     index=0  # 기본값으로 tinyllama 선택
 )
 
+# 모델 설치 확인
+if not check_and_install_model(selected_model):
+    st.stop()
+
 # LLM 초기화
 @st.cache_resource
 def get_llm(model_name):
@@ -85,6 +134,18 @@ st.sidebar.info(f"""
 현재 환경: CPU 2코어, RAM 16GB
 선택된 모델: {selected_model}
 모델 설명: {AVAILABLE_MODELS[selected_model]}
+
+💡 모델 관리 명령어:
+```bash
+# 모델 설치
+ollama pull {selected_model}
+
+# 설치된 모델 목록 확인
+ollama list
+
+# 모델 제거
+ollama rm {selected_model}
+```
 """)
 
 # 일반 대화용 프롬프트 템플릿
