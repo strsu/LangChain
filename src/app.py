@@ -5,7 +5,7 @@ from langchain_community.vectorstores import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.chains import RetrievalQA, LLMChain
 from langchain.prompts import PromptTemplate
-from langchain.llms import Ollama
+from langchain_community.llms import Ollama
 import tempfile
 import os
 import hashlib
@@ -33,12 +33,13 @@ UPLOAD_DIR = "uploaded_pdfs"
 PDF_INFO_FILE = "pdf_info.json"
 CHROMA_DIR = "chroma_dbs"
 CHAT_HISTORY_FILE = "chat_history.json"
+GENERAL_CHAT_KEY = "general_chat"  # 일반 대화용 키
 
 # 디렉토리 생성
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CHROMA_DIR, exist_ok=True)
 
-# 채팅 히스토리 관리
+# 채팅 히스토리 관리 함수
 def load_chat_history():
     if os.path.exists(CHAT_HISTORY_FILE):
         with open(CHAT_HISTORY_FILE, 'r', encoding='utf-8') as f:
@@ -48,6 +49,24 @@ def load_chat_history():
 def save_chat_history(history):
     with open(CHAT_HISTORY_FILE, 'w', encoding='utf-8') as f:
         json.dump(history, f, ensure_ascii=False, indent=2)
+
+# 세션 상태 초기화
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = load_chat_history()
+
+# LLM 초기화
+llm = Ollama(model="mistral")
+
+# 일반 대화용 프롬프트 템플릿
+general_chat_prompt = PromptTemplate(
+    template="당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 다음 질문에 한국어로 답변해주세요:\n\n{question}\n\n답변:",
+    input_variables=["question"]
+)
+
+general_chat_chain = LLMChain(
+    llm=llm,
+    prompt=general_chat_prompt
+)
 
 # 문서 분석 함수들
 def extract_keywords(text: str, top_n: int = 10) -> List[tuple]:
@@ -130,14 +149,35 @@ def combine_vectorstores(pdf_hashes: List[str], pdf_info: Dict, embedding_model)
     return combined_db
 
 # Streamlit 페이지 설정
-st.set_page_config(page_title="PDF QA 챗봇", layout="wide")
+st.set_page_config(page_title="AI 챗봇", layout="wide")
 
 # 탭 생성
-tab1, tab2, tab3 = st.tabs(["💬 채팅", "📊 문서 분석", "📝 대화 기록"])
+tab1, tab2, tab3, tab4 = st.tabs(["💬 일반 대화", "📄 PDF 분석", "📊 문서 분석", "📝 대화 기록"])
 
-# 채팅 탭
+# 일반 대화 탭
 with tab1:
-    st.title("📄 PDF 업로드 + 질문 답변 챗봇 (한글 지원)")
+    st.title("💬 AI 챗봇과 대화하기")
+    
+    chat_input = st.text_input("무엇이든 물어보세요", key="general_chat_input")
+    
+    if chat_input:
+        with st.spinner("답변 생성 중..."):
+            response = general_chat_chain.invoke({"question": chat_input})
+            
+            st.markdown("### 💬 답변:")
+            st.write(response['text'])  # invoke는 딕셔너리를 반환하므로 'text' 키로 접근
+            
+            # 대화 히스토리 저장
+            st.session_state.chat_history[GENERAL_CHAT_KEY].append({
+                'question': chat_input,
+                'answer': response['text'],
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            save_chat_history(st.session_state.chat_history)
+
+# PDF 분석 탭
+with tab2:
+    st.title("📄 PDF 업로드 + 질문 답변")
     
     # PDF 정보 로드
     pdf_info = load_pdf_info()
@@ -223,9 +263,6 @@ with tab1:
         
         vectordb = combine_vectorstores(selected_pdfs, pdf_info, embedding_model)
         
-        # LLM 초기화
-        llm = Ollama(model="mistral")
-        
         # Retrieval QA 체인 생성
         qa = RetrievalQA.from_chain_type(
             llm=llm,
@@ -238,7 +275,7 @@ with tab1:
         
         if query:
             with st.spinner("답변 생성 중..."):
-                result = qa({"query": query})
+                result = qa.invoke({"query": query})
             
             st.markdown("### 💬 답변:")
             st.write(result["result"])
@@ -250,19 +287,14 @@ with tab1:
                     st.markdown(f"**문서 chunk {i+1} (출처: {pdf_info.get(source_pdf, {}).get('filename', '알 수 없음')}):**")
                     st.write(doc.page_content)
             
-            # 채팅 히스토리 관리
-            if 'chat_history' not in st.session_state:
-                st.session_state.chat_history = load_chat_history()
-
-            if selected_pdfs and query:
-                # 채팅 히스토리에 대화 추가
-                chat_key = ','.join(sorted(selected_pdfs))
-                st.session_state.chat_history[chat_key].append({
-                    'question': query,
-                    'answer': result["result"],
-                    'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                })
-                save_chat_history(st.session_history.chat_history)
+            # 채팅 히스토리에 대화 추가
+            chat_key = ','.join(sorted(selected_pdfs))
+            st.session_state.chat_history[chat_key].append({
+                'question': query,
+                'answer': result["result"],
+                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            })
+            save_chat_history(st.session_state.chat_history)
 
     # PDF 삭제 기능
     st.sidebar.markdown("---")
@@ -280,7 +312,7 @@ with tab1:
         st.info("분석할 PDF를 선택하거나 새로운 PDF를 업로드해주세요.")
 
 # 문서 분석 탭
-with tab2:
+with tab3:
     st.title("📊 문서 분석")
     
     if selected_pdfs:
@@ -307,8 +339,8 @@ with tab2:
                     loader = PyPDFLoader(pdf_info[pdf_hash]['path'])
                     documents = loader.load()
                     text = "\n".join([doc.page_content for doc in documents])
-                    summary = summary_chain.run(text=text)
-                    st.write(summary)
+                    summary_result = summary_chain.invoke({"text": text})
+                    st.write(summary_result['text'])
         
         elif analysis_type == "키워드 분석":
             with st.spinner("키워드 추출 중..."):
@@ -372,15 +404,19 @@ with tab2:
                     st.pyplot(fig)
 
 # 대화 기록 탭
-with tab3:
+with tab4:
     st.title("📝 대화 기록")
     
-    if st.session_state.chat_history:
-        for pdf_group, history in st.session_state.chat_history.items():
-            pdf_names = [pdf_info[pdf_hash]['filename'] for pdf_hash in pdf_group.split(',')]
-            st.subheader(f"📚 문서: {', '.join(pdf_names)}")
-            
-            for chat in history:
+    # 대화 유형 선택
+    chat_type = st.radio(
+        "대화 유형 선택",
+        ["일반 대화", "PDF 분석 대화"],
+        horizontal=True
+    )
+    
+    if chat_type == "일반 대화":
+        if GENERAL_CHAT_KEY in st.session_state.chat_history and st.session_state.chat_history[GENERAL_CHAT_KEY]:
+            for chat in st.session_state.chat_history[GENERAL_CHAT_KEY]:
                 with st.expander(f"🕒 {chat['timestamp']} - {chat['question'][:50]}..."):
                     st.markdown("**질문:**")
                     st.write(chat['question'])
@@ -390,10 +426,47 @@ with tab3:
                     # 답변 평가 버튼
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("👍 도움됨", key=f"helpful_{chat['timestamp']}"):
+                        if st.button("👍 도움됨", key=f"helpful_general_{chat['timestamp']}"):
                             st.success("피드백 감사합니다!")
                     with col2:
-                        if st.button("👎 도움안됨", key=f"not_helpful_{chat['timestamp']}"):
+                        if st.button("👎 도움안됨", key=f"not_helpful_general_{chat['timestamp']}"):
                             st.error("피드백 감사합니다!")
-    else:
-        st.info("아직 대화 기록이 없습니다.")
+        else:
+            st.info("아직 일반 대화 기록이 없습니다.")
+    
+    else:  # PDF 분석 대화
+        if st.session_state.chat_history:
+            for pdf_group, history in st.session_state.chat_history.items():
+                if pdf_group == GENERAL_CHAT_KEY:  # 일반 대화는 건너뛰기
+                    continue
+                    
+                if not history:  # 빈 히스토리는 건너뛰기
+                    continue
+                
+                pdf_names = [
+                    pdf_info[pdf_hash]['filename'] 
+                    for pdf_hash in pdf_group.split(',') 
+                    if pdf_hash in pdf_info
+                ]
+                if not pdf_names:  # PDF가 삭제된 경우 건너뛰기
+                    continue
+                    
+                st.subheader(f"📚 문서: {', '.join(pdf_names)}")
+                
+                for chat in history:
+                    with st.expander(f"🕒 {chat['timestamp']} - {chat['question'][:50]}..."):
+                        st.markdown("**질문:**")
+                        st.write(chat['question'])
+                        st.markdown("**답변:**")
+                        st.write(chat['answer'])
+                        
+                        # 답변 평가 버튼
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("👍 도움됨", key=f"helpful_{chat['timestamp']}"):
+                                st.success("피드백 감사합니다!")
+                        with col2:
+                            if st.button("👎 도움안됨", key=f"not_helpful_{chat['timestamp']}"):
+                                st.error("피드백 감사합니다!")
+        else:
+            st.info("아직 PDF 분석 대화 기록이 없습니다.")
