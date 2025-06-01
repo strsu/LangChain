@@ -1,0 +1,23 @@
+[project]
+name = "langchain-project"
+version = "0.1.0"
+description = "LangChain project with document processing capabilities"
+requires-python = ">=3.8"
+
+dependencies = [
+    "streamlit",
+    "langchain",
+    "chromadb",
+    "pypdf",
+    "unstructured",
+    "sentence-transformers",
+    "ollama",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [] 
