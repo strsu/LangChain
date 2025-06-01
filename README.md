@@ -60,7 +60,7 @@ ollama pull mistral
 
 지원 패키지:
 - `blinker`: 시그널 처리
-- `protobuf`: 데이터 직렬화
+- `protobuf<=3.20.3`: 데이터 직렬화 (호환성을 위해 버전 제한)
 - `typing_extensions`: 타입 힌트 확장
 - `cachetools>=4.0,<6.0`: 캐시 관리
 - `click`: CLI 도구
@@ -109,14 +109,18 @@ langchain-project/
    - streamlit 1.45.1은 Python 3.9 이상을 요구합니다
    - 가상환경 생성 시 `python3.9` 명령어를 사용하세요
 
-2. 의존성 설치 방법 차이:
+2. protobuf 버전 문제:
+   - chromadb와의 호환성을 위해 protobuf 3.20.3 이하 버전이 필요합니다
+   - 이 제한은 pyproject.toml에 이미 반영되어 있습니다
+
+3. 의존성 설치 방법 차이:
    - `uv pip install -e .`: 개발 모드로 설치, 필요한 의존성 자동 추가
    - `uv pip sync pyproject.toml`: pyproject.toml에 명시된 의존성만 정확히 설치
 
-3. Ollama 관련 문제:
+4. Ollama 관련 문제:
    - Ollama 서비스가 실행 중인지 확인: `ollama serve`
    - 모델 상태 확인: `ollama list`
 
-4. Streamlit 실행 문제:
+5. Streamlit 실행 문제:
    - 가상환경이 활성화되어 있는지 확인
    - `python -m streamlit run src/app.py` 사용

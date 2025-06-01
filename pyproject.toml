@@ -14,7 +14,7 @@ dependencies = [
     "sentence-transformers",
     "ollama",
     "blinker",
-    "protobuf",
+    "protobuf<=3.20.3",
     "typing_extensions",
     "cachetools>=4.0,<6.0",
     "click",
