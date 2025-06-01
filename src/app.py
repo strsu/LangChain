@@ -72,18 +72,18 @@ def check_and_install_model(model_name: str) -> bool:
     # 설치된 모델 확인
     installed_models = [tag["name"] for tag in response.json().get("models", [])]
     if model_name not in installed_models:
-        with st.spinner(f"'{model_name}' 모델 설치 중... (처음 실행시 몇 분 소요될 수 있습니다)"):
-            try:
-                subprocess.run(["ollama", "pull", model_name], check=True)
-                time.sleep(2)  # 설치 완료 후 잠시 대기
-                return True
-            except subprocess.CalledProcessError:
+        try:
+            subprocess.run(["ollama", "pull", model_name], check=True)
+            time.sleep(2)  # 설치 완료 후 잠시 대기
+            return True
+        except subprocess.CalledProcessError:
+            with st.spinner(f"'{model_name}' 모델 설치 중... (처음 실행시 몇 분 소요될 수 있습니다)"):
                 st.error(f"""
-                '{model_name}' 모델 설치 중 오류가 발생했습니다.
-                터미널에서 다음 명령어를 실행해주세요:
-                ```bash
-                ollama pull {model_name}
-                ```
+                    '{model_name}' 모델 설치 중 오류가 발생했습니다.
+                    터미널에서 다음 명령어를 실행해주세요:
+                    ```bash
+                    ollama pull {model_name}
+                    ```
                 """)
                 return False
     return True
