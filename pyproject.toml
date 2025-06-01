@@ -2,11 +2,12 @@
 name = "langchain-project"
 version = "0.1.0"
 description = "LangChain project with document processing capabilities"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 
 dependencies = [
     "streamlit>=1.45.1",
     "langchain",
+    "langchain-community",
     "chromadb",
     "pypdf",
     "unstructured",
