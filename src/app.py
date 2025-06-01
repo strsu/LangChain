@@ -88,6 +88,16 @@ def check_and_install_model(model_name: str) -> bool:
                 return False
     return True
 
+def is_model_installed(model_name: str) -> bool:
+    try:
+        response = requests.get("http://localhost:11434/api/tags")
+        if response.status_code == 200:
+            installed_models = [tag["name"] for tag in response.json().get("models", [])]
+            return model_name in installed_models
+    except requests.exceptions.ConnectionError:
+        return False
+    return False
+
 # 디렉토리 생성
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CHROMA_DIR, exist_ok=True)
@@ -130,11 +140,15 @@ def get_llm(model_name):
 
 llm = get_llm(selected_model)
 
-st.sidebar.info(f"""
+# 모델 상태에 따른 사이드바 정보 표시
+sidebar_info = f"""
 현재 환경: CPU 2코어, RAM 16GB
 선택된 모델: {selected_model}
 모델 설명: {AVAILABLE_MODELS[selected_model]}
+"""
 
+if not is_model_installed(selected_model):
+    sidebar_info += f"""
 💡 모델 관리 명령어:
 ```bash
 # 모델 설치
@@ -146,11 +160,22 @@ ollama list
 # 모델 제거
 ollama rm {selected_model}
 ```
-""")
+"""
+
+st.sidebar.info(sidebar_info)
 
 # 일반 대화용 프롬프트 템플릿
 general_chat_prompt = PromptTemplate(
-    template="당신은 친절하고 도움이 되는 AI 어시스턴트입니다. 다음 질문에 한국어로 답변해주세요:\n\n{question}\n\n답변:",
+    template="""당신은 한국어로 대화하는 AI 어시스턴트입니다.
+다음 사항을 지켜주세요:
+1. 항상 한국어로 자연스럽게 대화하기
+2. 번역하지 않고 바로 한국어로 생각하고 답변하기
+3. 친절하고 전문적으로 답변하기
+4. 필요한 경우 예시나 구체적인 설명 추가하기
+
+사용자의 질문: {question}
+
+답변:""",
     input_variables=["question"]
 )
 
