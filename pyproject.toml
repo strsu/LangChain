@@ -5,7 +5,7 @@ description = "LangChain project with document processing capabilities"
 requires-python = ">=3.8"
 
 dependencies = [
-    "streamlit",
+    "streamlit>=1.45.1",
     "langchain",
     "chromadb",
     "pypdf",
@@ -15,6 +15,12 @@ dependencies = [
     "blinker",
     "protobuf",
     "typing_extensions",
+    "cachetools>=4.0,<6.0",
+    "click",
+    "tornado",
+    "requests",
+    "urllib3",
+    "idna",
 ]
 
 [build-system]
